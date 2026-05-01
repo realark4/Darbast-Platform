@@ -1,0 +1,47 @@
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean
+from sqlalchemy.orm import relationship
+from Db.Dbase import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    password = Column(String, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    full_name = Column(String, nullable=True)
+    role = Column(String, default="user", nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(String, nullable=True)
+
+    advertisements = relationship("Adver", back_populates="owner", cascade="all, delete-orphan")
+    favourites = relationship("Favourites", back_populates="user", cascade="all, delete-orphan")
+
+
+class Adver(Base):
+    __tablename__ = "advertisements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True, nullable=False)
+    description = Column(String, nullable=False)
+    price = Column(Float, nullable=False)
+    location = Column(String, nullable=False)
+    category_id = Column(Integer, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(String, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    owner = relationship("User", back_populates="advertisements")
+    favourites = relationship("Favourites", back_populates="advertisement", cascade="all, delete-orphan")
+
+
+class Favourites(Base):
+    __tablename__ = "favourites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    advertisement_id = Column(Integer, ForeignKey("advertisements.id"), nullable=False)
+
+    user = relationship("User", back_populates="favourites")
+    advertisement = relationship("Adver", back_populates="favourites")
