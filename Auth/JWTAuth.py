@@ -3,7 +3,7 @@ from typing import Optional
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status, Request  # Added Request
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -14,8 +14,23 @@ from Core.Configs import settings
 
 # ── Crypto Setup ──────────────────────────────────────────────────────────────
 
+# ── Custom OAuth2 Scheme ─────────────────────────────────────────────────────
+
+class OAuth2PasswordBearerWithCookie(OAuth2PasswordBearer):
+    async def __call__(self, request: Request) -> Optional[str]:
+        # First, try to get the token from the Authorization header (standard)
+        authorization: str = request.headers.get("Authorization")
+        if authorization:
+            parts = authorization.split()
+            if len(parts) == 2 and parts[0].lower() == "bearer":
+                return parts[1]
+
+        # If not in header, try to get it from the 'access_token' cookie
+        return request.cookies.get("access_token")
+
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+oauth2_scheme = OAuth2PasswordBearerWithCookie(tokenUrl="auth/login")
 
 
 # ── Pydantic Models ───────────────────────────────────────────────────────────
@@ -57,7 +72,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 async def get_current_user(
-    request: Request,  # Changed to accept Request directly
+    token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ) -> User:
     credentials_exception = HTTPException(
@@ -65,17 +80,6 @@ async def get_current_user(
         detail="اعتبارسنجی ناموفق بود",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    token = None
-
-    # Try to get token from Authorization header
-    auth_header = request.headers.get("Authorization")
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
-
-    # If not in header, try to get from cookie
-    if not token:
-        token = request.cookies.get("access_token")
-
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
