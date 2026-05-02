@@ -17,6 +17,9 @@ class User(Base):
 
     advertisements = relationship("Adver", back_populates="owner", cascade="all, delete-orphan")
     favourites = relationship("Favourites", back_populates="user", cascade="all, delete-orphan")
+    
+    def __str__(self):
+        return self.full_name or self.username
 
 
 class Adver(Base):
@@ -29,13 +32,17 @@ class Adver(Base):
     location = Column(String, nullable=False)
     transaction_type = Column(String, nullable=False, default="sell")  # خرید، فروش، رهن، اجاره
     category_id = Column(Integer, nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False)
+    is_active = Column(Boolean, default=False, nullable=False)
+    rejection_reason = Column(String, nullable=True)
     created_at = Column(String, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     owner = relationship("User", back_populates="advertisements")
     favourites = relationship("Favourites", back_populates="advertisement", cascade="all, delete-orphan")
     images = relationship("AdverImage", back_populates="adver", cascade="all, delete-orphan")
+    
+    def __str__(self):
+        return self.title
 
 
 class AdverImage(Base):
@@ -47,6 +54,9 @@ class AdverImage(Base):
     is_primary = Column(Boolean, default=False)
 
     adver = relationship("Adver", back_populates="images")
+    
+    def __str__(self):
+        return f"تصویر آگهی کد {self.adver_id}"
 
 
 class Favourites(Base):
@@ -58,3 +68,6 @@ class Favourites(Base):
 
     user = relationship("User", back_populates="favourites")
     advertisement = relationship("Adver", back_populates="favourites")
+    
+    def __str__(self):
+        return f"علاقه‌مندی (کاربر {self.user_id} - آگهی {self.advertisement_id})"

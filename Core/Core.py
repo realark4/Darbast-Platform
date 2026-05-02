@@ -13,6 +13,7 @@ from Api.PropertyUser import router as my_ads_router
 from Api.UserDtailes import router as users_router
 from Api.Bookmarks import router as bookmarks_router
 from Api.Admin import router as admin_router
+from AdminUI import init_admin
 
 
 @asynccontextmanager
@@ -24,10 +25,30 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description="پلتفرم هوش مصنوعی بنگاه باشی",
-    version="2.0.0",
+    description="DARBast | An AI-powered real estate platform",
+    version="1.0.0",
     lifespan=lifespan,
 )
+
+# Add session middleware for admin authentication
+from starlette.middleware.sessions import SessionMiddleware
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key=settings.SECRET_KEY, 
+    max_age=settings.ADMIN_SESSION_MAX_AGE,
+    https_only=False  # در محیط واقعی روی سرور حتماً True باشد
+)
+init_admin(app)
+
+# ── Security Headers Middleware ───────────────────────────────────────────────
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
@@ -41,6 +62,7 @@ app.add_middleware(
 # ── Static Files ──────────────────────────────────────────────────────────────
 os.makedirs("uploads", exist_ok=True)
 app.mount("/static", StaticFiles(directory="uploads"), name="static")
+
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth_router)

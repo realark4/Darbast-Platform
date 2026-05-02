@@ -1,0 +1,143 @@
+{% extends "sqladmin/layout.html" %}
+{% block content %}
+<div class="container-fluid p-4" dir="rtl">
+    <div class="card shadow-lg border-0 overflow-hidden" style="border-radius: 15px;">
+        <div class="card-header bg-dark text-white p-4 d-flex justify-content-between align-items-center">
+            <div>
+                <h3 class="mb-0 fw-bold">بررسی آگهی: {{ model.title }}</h3>
+                <small class="text-muted">کد آگهی: #{{ model.id }}</small>
+            </div>
+            <span class="badge bg-warning text-dark px-3 py-2 fs-6">
+                <i class="fa fa-clock me-1"></i>در انتظار تایید
+            </span>
+        </div>
+
+        <div class="card-body p-4">
+            <div class="row g-4">
+                <!-- Details Section -->
+                <div class="col-md-7">
+                    <h5 class="border-bottom border-primary pb-2 mb-3 text-primary fw-bold">
+                        <i class="fa fa-list-ul me-2"></i>جزئیات آگهی
+                    </h5>
+                    <table class="table table-hover align-middle rounded overflow-hidden">
+                        <tr class="table-light">
+                            <th class="text-muted" width="35%">عنوان</th>
+                            <td class="fw-bold">{{ model.title }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">قیمت</th>
+                            <td class="fw-bold text-success fs-5">
+                                {{ "{:,.0f}".format(model.price) }} تومان
+                            </td>
+                        </tr>
+                        <tr class="table-light">
+                            <th class="text-muted">نوع معامله</th>
+                            <td>
+                                {% set types = {"sell": "فروش", "buy": "خرید", "rent": "اجاره", "mortgage": "رهن"} %}
+                                <span class="badge bg-info text-dark">
+                                    {{ types.get(model.transaction_type, model.transaction_type) }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">موقعیت</th>
+                            <td><i class="fa fa-map-marker-alt text-danger me-1"></i>{{ model.location }}</td>
+                        </tr>
+                        <tr class="table-light">
+                            <th class="text-muted">ثبت کننده</th>
+                            <td>
+                                <i class="fa fa-user-circle text-secondary me-1"></i>
+                                {{ model.owner_name }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">تاریخ ثبت</th>
+                            <td>{{ model.created_at or "—" }}</td>
+                        </tr>
+                    </table>
+
+                    <h5 class="border-bottom border-primary pb-2 mb-3 mt-4 text-primary fw-bold">
+                        <i class="fa fa-align-right me-2"></i>توضیحات
+                    </h5>
+                    <div class="bg-light p-3 rounded-3 border" style="min-height: 100px; line-height: 1.8;">
+                        {{ model.description }}
+                    </div>
+                </div>
+
+                <!-- Images Section -->
+                <div class="col-md-5">
+                    <h5 class="border-bottom border-success pb-2 mb-3 text-success fw-bold text-center">
+                        <i class="fa fa-images me-2"></i>تصاویر آگهی
+                    </h5>
+                    <div class="row g-2">
+                        {% for img in model.images %}
+                        <div class="col-6">
+                            <a href="{{ img.image_url }}" target="_blank">
+                                <img src="{{ img.image_url }}"
+                                     class="img-fluid rounded shadow-sm"
+                                     style="height: 140px; width: 100%; object-fit: cover; cursor: zoom-in; transition: transform 0.2s;"
+                                     onmouseover="this.style.transform='scale(1.05)'"
+                                     onmouseout="this.style.transform='scale(1)'"
+                                     {% if loop.first %}
+                                     title="تصویر اصلی"
+                                     {% endif %}
+                                >
+                            </a>
+                        </div>
+                        {% else %}
+                        <div class="col-12 text-center py-5 text-muted">
+                            <i class="fa fa-image fa-4x mb-3 d-block"></i>
+                            تصویری ثبت نشده است.
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if model.images %}
+                    <div class="text-center mt-2">
+                        <small class="text-muted">{{ model.images|length }} تصویر ثبت شده</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Action Section -->
+            <hr class="my-4">
+            <div class="p-4 bg-light rounded-4 border">
+                <h5 class="mb-4 text-center fw-bold text-dark">
+                    <i class="fa fa-gavel me-2 text-primary"></i>تصمیم‌گیری
+                </h5>
+                <form method="POST">
+                    <div class="mb-4">
+                        <label for="rejection_reason" class="form-label fw-bold text-secondary">
+                            علت رد (اختیاری):
+                        </label>
+                        <textarea
+                            id="rejection_reason"
+                            name="rejection_reason"
+                            class="form-control border-2"
+                            rows="3"
+                            placeholder="در صورت رد آگهی، علت را اینجا بنویسید (مثلاً: تصویر نامناسب، قیمت غیرواقعی، توضیحات ناقص و...)">{{ model.rejection_reason or "" }}</textarea>
+                    </div>
+                    <div class="d-flex justify-content-center gap-3 flex-wrap">
+                        <button type="submit" name="action" value="reject"
+                                class="btn btn-outline-danger btn-lg px-5 rounded-pill fw-bold"
+                                onclick="return confirm('آیا از رد این آگهی مطمئن هستید؟')">
+                            <i class="fa fa-times-circle me-2"></i>رد آگهی
+                        </button>
+                        <button type="submit" name="action" value="approve"
+                                class="btn btn-success btn-lg px-5 rounded-pill fw-bold shadow"
+                                onclick="return confirm('آیا از تایید و انتشار این آگهی مطمئن هستید؟')">
+                            <i class="fa fa-check-circle me-2"></i>تایید و انتشار
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card-footer bg-white text-center p-3 border-top">
+            <a href="/admin/pending_adver/list" class="text-decoration-none text-muted">
+                <i class="fa fa-arrow-right me-1"></i>بازگشت به لیست آگهی‌های در انتظار
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
