@@ -9,7 +9,7 @@ from typing import Annotated, Optional
 
 from Db.Dbase import get_db
 from Db.SC import Adver
-from Schemas.AdverSchema import AdverResponse
+from Schemas.AdverSchema import AdverResponse, TransactionType
 
 router = APIRouter(prefix="/advertisement", tags=["Advertisement"])
 
@@ -24,6 +24,7 @@ def list_advertisements(
     location: Optional[str] = Query(None, description="فیلتر بر اساس موقعیت"),
     min_price: Optional[float] = Query(None, ge=0, description="حداقل قیمت"),
     max_price: Optional[float] = Query(None, ge=0, description="حداکثر قیمت"),
+    transaction_type: Optional[TransactionType] = Query(None, description="نوع معامله (خرید، فروش، رهن، اجاره)"),
 ):
     """لیست همه آگهی‌های فعال با قابلیت فیلتر"""
     query = db.query(Adver).filter(Adver.is_active == True)
@@ -34,6 +35,8 @@ def list_advertisements(
         query = query.filter(Adver.price >= min_price)
     if max_price is not None:
         query = query.filter(Adver.price <= max_price)
+    if transaction_type:
+        query = query.filter(Adver.transaction_type == transaction_type)
 
     return query.offset(skip).limit(limit).all()
 

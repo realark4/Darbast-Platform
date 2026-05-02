@@ -7,14 +7,16 @@ PUT    /my-ads/{id}        — ویرایش آگهی
 DELETE /my-ads/{id}        — حذف آگهی
 """
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+import os
+import shutil
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import Annotated
 
 from Db.Dbase import get_db
-from Db.SC import User, Adver
+from Db.SC import User, Adver, AdverImage
 from Auth.JWTAuth import get_current_user
-from Schemas.AdverSchema import AdverCreate, AdverUpdate, AdverResponse
+from Schemas.AdverSchema import AdverCreate, AdverUpdate, AdverResponse, AdverImageResponse
 
 router = APIRouter(prefix="/my-ads", tags=["My Advertisements"])
 
@@ -84,3 +86,52 @@ def delete_advertisement(adver_id: int, db: DBSession, current_user: CurrentUser
     adver = _get_own_adver(adver_id, current_user.id, db)
     db.delete(adver)
     db.commit()
+
+
+# ── Image Uploads ─────────────────────────────────────────────────────────────
+
+UPLOAD_DIR = "uploads/images"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+@router.post("/{adver_id}/images", response_model=AdverImageResponse, status_code=status.HTTP_201_CREATED)
+def upload_adver_image(
+    adver_id: int,
+    db: DBSession,
+    current_user: CurrentUser,
+    file: UploadFile = File(...),
+):
+    """آپلود تصویر برای یک آگهی"""
+    # 1. تایید مالکیت آگهی
+    adver = _get_own_adver(adver_id, current_user.id, db)
+
+    # 2. بررسی فرمت فایل
+    allowed_types = ["image/jpeg", "image/png", "image/jpg"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="فرمت فایل پشتیبانی نمی‌شود. فقط JPEG و PNG",
+        )
+
+    # 3. ذخیره فایل
+    file_ext = file.filename.split(".")[-1]
+    unique_filename = f"adver_{adver.id}_{datetime.now().timestamp()}.{file_ext}"
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # 4. ایجاد رکورد در دیتابیس
+    # URL for static files (we will mount it at /static)
+    image_url = f"/static/images/{unique_filename}"
+    
+    new_image = AdverImage(
+        adver_id=adver.id,
+        image_url=image_url,
+        is_primary=False  # You can add logic to set the first image as primary
+    )
+    db.add(new_image)
+    db.commit()
+    db.refresh(new_image)
+
+    return new_image
